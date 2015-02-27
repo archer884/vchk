@@ -1,17 +1,12 @@
-#![feature(env)]
+#![feature(box_syntax, env, fs, io, path)]
 
 extern crate vword;
 use vword::vword::VWord;
 
 use std::fs::File;
-use std::io::BufReader;
+use std::io::{BufReader, BufReadExt};
+use std::path::Path;
 
-/// Count command instructs the program to list
-/// only the count of matching words. List command
-/// instructs the program to actually go ahead and
-/// list everything. The bool carried by each variant
-/// determines whether valid words are defined by
-/// the presence of vowels or ordered vowels.
 enum Command {
     Count(bool),
     List(bool),
@@ -27,18 +22,20 @@ fn main() {
 }
 
 fn print_count(words: Box<Iterator<Item=VWord>>) {
-
+    println!("word count {}", words.fold(0usize, |a,_| a + 1));
 }
 
 fn print_words(words: Box<Iterator<Item=VWord>>) {
-
+    for word in words.map(|w| w.word) {
+        println!("{}", word);
+    }
 }
 
-fn get_words(req_ordered: bool) -> Box<Iterator<Item=VWord>> {
-    BufReader::new(File::open(&Path::new("/usr/share/dict/words")))
+fn get_words<'a>(req_ordered: bool) -> Box<Iterator<Item=VWord> + 'a> {
+    box BufReader::new(File::open(&Path::new("/usr/share/dict/words")).unwrap())
         .lines()
-        .map(VWord::new)
-        .filter(|vword| if req_ordered {
+        .map(|l| VWord::new(l.unwrap()))
+        .filter(move |vword| if req_ordered {
             vword.has_ordered_vowels()
         } else {
             vword.has_all_vowels()
